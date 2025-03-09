@@ -1,59 +1,53 @@
-import { AnimeParser, Anime } from "mangayomi-extensions";
-
-class HentaiHaven extends AnimeParser {
-    constructor() {
-        super();
-        this.name = "HentaiHaven";
-        this.baseUrl = "https://hentaihaven.xxx";
-        this.lang = "en";
-        this.supportsLatest = true;
-    }
-
-    async popularAnime(page = 1) {
+const mangayomiSources = [{
+    "name": "HentaiHaven",
+    "lang": "en",
+    "baseUrl": "https://hentaihaven.xxx",
+    "apiUrl": "",
+    "iconUrl": "https://raw.githubusercontent.com/kodjodevf/mangayomi-extensions/main/javascript/icon/en.allanime.png",
+    "typeSource": "single",
+    "itemType": 1,
+    "isNsfw": false,
+    "version": "0.0.35",
+    "dateFormat": "",
+    "dateFormatLocale": "",
+    "pkgPath": "anime/src/en/Haven.js"
+}];
+ async fetchPopularAnime(page = 1) {
         const url = `${this.baseUrl}/hentai/page/${page}/`;
         const response = await this.fetchHtml(url);
         const $ = this.cheerio.load(response);
 
-        const animeList = [];
-        $("div.item").each((i, element) => {
-            const title = $(element).find("h3 a").text();
-            const thumbnail = $(element).find("img").attr("src");
-            const url = $(element).find("h3 a").attr("href");
-
-            animeList.push(new Anime({
-                title,
-                url,
-                thumbnail
-            }));
+        const results = [];
+        $("div.item").each((_, element) => {
+            results.push({
+                title: $(element).find("h3 a").text(),
+                url: $(element).find("h3 a").attr("href"),
+                thumbnail: $(element).find("img").attr("src"),
+            });
         });
 
-        const hasNextPage = $("a.next").length > 0;
-        return { anime: animeList, hasNextPage };
+        return new FetchResult(results, $("a.next").length > 0);
     }
 
-    async latestAnime(page = 1) {
-        return this.popularAnime(page);
+    async fetchLatestAnime(page = 1) {
+        return this.fetchPopularAnime(page);
     }
 
-    async searchAnime(query, page = 1) {
+    async searchAnime(query) {
         const url = `${this.baseUrl}/?s=${encodeURIComponent(query)}`;
         const response = await this.fetchHtml(url);
         const $ = this.cheerio.load(response);
 
-        const animeList = [];
-        $("div.item").each((i, element) => {
-            const title = $(element).find("h3 a").text();
-            const thumbnail = $(element).find("img").attr("src");
-            const url = $(element).find("h3 a").attr("href");
-
-            animeList.push(new Anime({
-                title,
-                url,
-                thumbnail
-            }));
+        const results = [];
+        $("div.item").each((_, element) => {
+            results.push({
+                title: $(element).find("h3 a").text(),
+                url: $(element).find("h3 a").attr("href"),
+                thumbnail: $(element).find("img").attr("src"),
+            });
         });
 
-        return { anime: animeList, hasNextPage: false };
+        return new FetchResult(results, false);
     }
 
     async fetchEpisodes(animeUrl) {
@@ -62,13 +56,10 @@ class HentaiHaven extends AnimeParser {
 
         const episodes = [];
         $("li.wp-manga-chapter").each((index, element) => {
-            const episodeTitle = $(element).find("a").text();
-            const episodeUrl = $(element).find("a").attr("href");
-
             episodes.push({
-                title: episodeTitle,
-                url: episodeUrl,
-                episodeNumber: index + 1
+                title: $(element).find("a").text().trim(),
+                url: $(element).find("a").attr("href"),
+                episodeNumber: index + 1,
             });
         });
 
@@ -80,13 +71,6 @@ class HentaiHaven extends AnimeParser {
         const $ = this.cheerio.load(response);
 
         const videoUrl = $("video source").attr("src");
-        if (!videoUrl) return [];
-
-        return [{
-            url: videoUrl,
-            quality: "Default"
-        }];
+        return videoUrl ? [{ url: videoUrl, quality: "Default" }] : [];
     }
 }
-
-export default new HentaiHaven();
